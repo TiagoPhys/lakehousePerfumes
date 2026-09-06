@@ -1,12 +1,12 @@
 # Job rotaperfume_pipeline — o pipeline da noite.
 #
-# Hoje ele tem UMA tarefa. Ele ganha uma por prompt, nas próximas cinco entregas,
+# Hoje ele tem DUAS tarefas. Ele ganha uma por prompt, nas próximas quatro entregas,
 # sempre neste mesmo arquivo:
 #
-#   raw_conferencia      (prompt 1 · hoje)  os 10 arquivos chegaram ao Volume?
+#   raw_conferencia      (prompt 1)         os 10 arquivos chegaram ao Volume?
 #        |
 #        v
-#   bronze_ingestao      (prompt 2)         arquivo vira tabela, 1:1, sem regra
+#   bronze_ingestao      (prompt 2 · hoje)  arquivo vira tabela, 1:1, sem regra
 #        |
 #        v
 #   silver_transformacao (prompt 3)         limpeza, tipagem, ERP x CRM
@@ -37,6 +37,16 @@ resources:
           description: Conferência de chegada do raw — falha alto se faltar arquivo.
           notebook_task:
             notebook_path: ../src/raw/conferencia.py
+            base_parameters:
+              catalog: ${var.catalog}
+        - task_key: bronze_ingestao
+          description: Arquivo vira tabela Delta — tudo texto, sem limpeza.
+          # A ordem é o conteúdo: se a conferência de chegada falhar, a bronze
+          # não roda. Melhor pipeline vermelho do que bronze com nove tabelas.
+          depends_on:
+            - task_key: raw_conferencia
+          notebook_task:
+            notebook_path: ../src/bronze/ingestao.py
             base_parameters:
               catalog: ${var.catalog}
 
