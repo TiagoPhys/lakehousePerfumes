@@ -1,0 +1,10 @@
+{
+  "enabledPlugins": {
+    "databricks@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(databricks experimental aitools tools query:*)"
+    ]
+  }
+}

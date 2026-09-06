@@ -21,3 +21,10 @@ rad.json
 *.flf
 #Test results file
 TestResults.xml
+
+### Databricks / Python ###
+# estado local da CLI e do bundle (nao versionar)
+.databricks/
+__pycache__/
+*.pyc
+.venv/

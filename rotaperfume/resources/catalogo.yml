@@ -1,0 +1,44 @@
+# O catálogo como código.
+#
+# Ontem isso foi Create catalog -> Create schema, três vezes, no clique. Hoje é
+# este arquivo. Se o workspace sumir, um `databricks bundle deploy` traz tudo de
+# volta idêntico — inclusive os COMMENT, que são a documentação da camada.
+#
+# O CATÁLOGO EM SI NÃO ESTÁ AQUI: no Free Edition a API do Unity Catalog recusa
+# criar catálogo (exige MANAGED LOCATION). Ele nasce por SQL, em
+# scripts/criar-catalogo.sh, que roda ANTES do deploy. Veja o script.
+resources:
+  schemas:
+    bronze:
+      catalog_name: ${var.catalog}
+      name: bronze
+      comment: >-
+        Camada bronze: o dado como saiu do sistema de origem, sem regra de negócio
+        aplicada — é aqui que mora o volume raw com os CSVs originais.
+
+    silver:
+      catalog_name: ${var.catalog}
+      name: silver
+      comment: >-
+        Camada silver: o mesmo dado já limpo, tipado e deduplicado, pronto para ser
+        cruzado entre ERP e CRM.
+
+    gold:
+      catalog_name: ${var.catalog}
+      name: gold
+      comment: >-
+        Camada gold: as tabelas que respondem pergunta de negócio — é o que o
+        dashboard e a diretoria leem.
+
+  volumes:
+    raw:
+      catalog_name: ${var.catalog}
+      # A referência ao schema (em vez de "bronze" escrito na mão) faz o bundle
+      # criar o schema antes do volume, sem a gente ter que pensar na ordem.
+      schema_name: ${resources.schemas.bronze.name}
+      name: raw
+      volume_type: MANAGED
+      comment: >-
+        Arquivo bruto, byte por byte como saiu do ERP e do CRM. Raw não é bronze:
+        raw é arquivo, bronze é tabela. Quando alguém perguntar "esse número veio
+        de onde?", a resposta está aqui — é um arquivo, não uma opinião.

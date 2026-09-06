@@ -1,0 +1,49 @@
+# Job rotaperfume_pipeline — o pipeline da noite.
+#
+# Hoje ele tem UMA tarefa. Ele ganha uma por prompt, nas próximas cinco entregas,
+# sempre neste mesmo arquivo:
+#
+#   raw_conferencia      (prompt 1 · hoje)  os 10 arquivos chegaram ao Volume?
+#        |
+#        v
+#   bronze_ingestao      (prompt 2)         arquivo vira tabela, 1:1, sem regra
+#        |
+#        v
+#   silver_transformacao (prompt 3)         limpeza, tipagem, ERP x CRM
+#        |
+#        v
+#   gold_agregacao       (prompt 4)         as tabelas que a diretoria lê
+#        |
+#        v
+#   qualidade            (prompt 5)         testes de dado, o pipeline se auditando
+#        |
+#        v
+#   publicacao           (prompt 6)         dashboard e alerta
+#
+# Cada tarefa nova depende da anterior (depends_on). A primeira falhar para o
+# resto — que é exatamente o ponto da raw_conferencia.
+resources:
+  jobs:
+    rotaperfume_pipeline:
+      name: rotaperfume_pipeline
+      description: >-
+        Pipeline da RotaPerfume: do arquivo bruto no Volume até a camada que a
+        diretoria lê.
+
+      # Sem job_clusters e sem existing_cluster_id: no Free Edition tudo é
+      # serverless, e uma notebook_task sem compute declarado roda em serverless.
+      tasks:
+        - task_key: raw_conferencia
+          description: Conferência de chegada do raw — falha alto se faltar arquivo.
+          notebook_task:
+            notebook_path: ../src/raw/conferencia.py
+            base_parameters:
+              catalog: ${var.catalog}
+
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: America/Sao_Paulo
+        # No target dev isto vira PAUSED pelo presets do databricks.yml.
+
+      queue:
+        enabled: true

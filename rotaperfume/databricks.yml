@@ -1,0 +1,46 @@
+# Declarative Automation Bundle do projeto rotaperfume.
+# Noite 2 — o catálogo inteiro vira código: catálogo, schemas, volume e job.
+# https://docs.databricks.com/dev-tools/bundles/index.html
+bundle:
+  name: rotaperfume
+  uuid: 63bbf27a-0369-483d-ab51-58de24a0f67d
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Catálogo do Unity Catalog onde vivem bronze, silver e gold.
+    default: lakehouse_rotaperfume
+  warehouse_id:
+    description: SQL Warehouse serverless usado pelos scripts e pelas consultas da aula.
+    default: b4f47e17c16fd7f5
+
+targets:
+  dev:
+    default: true
+
+    # ARMADILHA: NÃO use `mode: development` aqui.
+    #
+    # O modo development prefixa o nome de TODO recurso com "[dev seu_usuario]" —
+    # inclusive os SCHEMAS do Unity Catalog. bronze viraria dev_tiago_bronze, e
+    # todo o SQL da noite (que fala lakehouse_rotaperfume.bronze.x) quebraria.
+    #
+    # O que a gente realmente queria do mode: development era só uma coisa — não
+    # deixar o agendamento disparar em ambiente de desenvolvimento. Isso a gente
+    # pede explicitamente, sem efeito colateral no nome dos recursos:
+    presets:
+      trigger_pause_status: PAUSED
+
+    workspace:
+      host: https://dbc-e3c00891-ca8a.cloud.databricks.com
+
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-e3c00891-ca8a.cloud.databricks.com
+      # Deploy explícito para garantir uma única cópia.
+      root_path: /Workspace/Users/tiago.phys@gmail.com/.bundle/${bundle.name}/${bundle.target}
+    permissions:
+      - user_name: tiago.phys@gmail.com
+        level: CAN_MANAGE
