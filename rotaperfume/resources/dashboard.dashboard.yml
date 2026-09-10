@@ -1,0 +1,31 @@
+# O dashboard como CÓDIGO.
+#
+# Ontem isso foi arrastar widget na tela. Hoje é um arquivo JSON versionado ao lado
+# do resto do bundle — e é uma diferença maior do que parece:
+#
+#   - tem diff:     `git diff -- '*lvdash.json'` mostra o que mudou e quem mudou
+#   - tem revisão:  a alteração passa por pull request como qualquer outro código
+#   - tem rollback: `git checkout` + `databricks bundle deploy`, dois comandos
+#
+# Dashboard clicado não tem nenhuma das três. Se alguém apaga um widget na sexta,
+# ninguém sabe o que tinha lá — e normalmente quem sabia montar já saiu da empresa.
+#
+# A chave do recurso (`comercial`) tem que ser única no bundle inteiro, mesmo entre
+# tipos diferentes: já existem schemas.gold e jobs.rotaperfume_pipeline.
+resources:
+  dashboards:
+    comercial:
+      display_name: RotaPerfume · Comercial
+
+      # O JSON mora ao lado deste arquivo. Como não é *.yml, ele fica de fora do
+      # `include: resources/*.yml` do databricks.yml e entra só por aqui.
+      file_path: ../resources/dashboard-comercial.lvdash.json
+
+      warehouse_id: ${var.warehouse_id}
+
+      # É daqui que vem o catálogo e o schema das queries do dashboard. Por isso o
+      # SQL dos datasets escreve `FROM fato_vendas`, sem prefixo nenhum: se alguém
+      # escrever `FROM gold.fato_vendas`, estes dois campos passam a ser IGNORADOS
+      # naquela query e o dashboard deixa de ser portátil entre ambientes.
+      dataset_catalog: ${var.catalog}
+      dataset_schema: gold

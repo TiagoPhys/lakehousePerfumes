@@ -1,0 +1,603 @@
+{
+  "datasets": [
+    {
+      "name": "ds_vendas",
+      "displayName": "Vendas (gold.fato_vendas)",
+      "queryLines": [
+        "SELECT pedido_id, data_pedido, ano, mes, canal,\n",
+        "       cliente_id, razao_social, segmento, cidade,\n",
+        "       sku, categoria, marca, nota_olfativa,\n",
+        "       quantidade, receita, custo, margem, devolucao\n",
+        "FROM fato_vendas"
+      ],
+      "columns": [
+        {
+          "displayName": "Receita",
+          "description": "Receita liquida: quantidade vezes preco praticado, com a devolucao entrando negativa. Nao considera desconto comercial nem frete.",
+          "expression": "SUM(`receita`)"
+        },
+        {
+          "displayName": "Margem",
+          "description": "Receita menos o custo do produto. Nao considera desconto comercial nem frete.",
+          "expression": "SUM(`margem`)"
+        },
+        {
+          "displayName": "Pedidos",
+          "description": "Pedidos distintos. O fato tem grao de ITEM, entao contar linhas daria numero de itens, nao de pedidos.",
+          "expression": "COUNT(DISTINCT `pedido_id`)"
+        },
+        {
+          "displayName": "Ticket Medio",
+          "description": "Receita dividida pelo numero de pedidos distintos.",
+          "expression": "SUM(`receita`) / COUNT(DISTINCT `pedido_id`)"
+        },
+        {
+          "displayName": "Margem %",
+          "description": "Margem dividida pela receita, entre 0 e 1 para o formato percentual.",
+          "expression": "SUM(`margem`) / SUM(`receita`)"
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "comercial",
+      "displayName": "Comercial",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1",
+      "layout": [
+        {
+          "widget": {
+            "name": "cabecalho",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# RotaPerfume · Comercial\n",
+                "\n",
+                "Tudo nesta tela sai de `gold.fato_vendas`, com a regra de negócio já escrita na tabela: pedido cancelado fora, devolução dentro com valor negativo. Nenhum widget converte tipo nem repete filtro — se um deles precisasse de um `CAST`, o problema estaria na gold, não aqui. Clique numa marca, num canal ou numa categoria: a tela inteira filtra junto."
+              ]
+            }
+          },
+          "position": { "x": 0, "y": 0, "width": 12, "height": 2 }
+        },
+        {
+          "widget": {
+            "name": "filtro-ano",
+            "queries": [
+              {
+                "name": "q_ano",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [{ "name": "ano", "expression": "`ano`" }],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [{ "fieldName": "ano", "displayName": "Ano", "queryName": "q_ano" }]
+              },
+              "frame": { "showTitle": true, "title": "Ano" }
+            }
+          },
+          "position": { "x": 0, "y": 2, "width": 4, "height": 2 }
+        },
+        {
+          "widget": {
+            "name": "filtro-segmento",
+            "queries": [
+              {
+                "name": "q_segmento",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [{ "name": "segmento", "expression": "`segmento`" }],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [{ "fieldName": "segmento", "displayName": "Segmento", "queryName": "q_segmento" }]
+              },
+              "frame": { "showTitle": true, "title": "Segmento" }
+            }
+          },
+          "position": { "x": 4, "y": 2, "width": 4, "height": 2 }
+        },
+        {
+          "widget": {
+            "name": "filtro-cidade",
+            "queries": [
+              {
+                "name": "q_cidade",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [{ "name": "cidade", "expression": "`cidade`" }],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [{ "fieldName": "cidade", "displayName": "Cidade", "queryName": "q_cidade" }]
+              },
+              "frame": { "showTitle": true, "title": "Cidade" }
+            }
+          },
+          "position": { "x": 8, "y": 2, "width": 4, "height": 2 }
+        },
+        {
+          "widget": {
+            "name": "kpi-receita",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    { "name": "measure(Receita)", "expression": "MEASURE(`Receita`)" },
+                    { "name": "monthly(data_pedido)", "expression": "DATE_TRUNC(\"MONTH\", `data_pedido`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(Receita)",
+                  "displayName": "Receita",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "BRL",
+                    "abbreviation": "compact",
+                    "decimalPlaces": { "type": "max", "places": 2 }
+                  }
+                },
+                "period": { "fieldName": "monthly(data_pedido)" }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Receita",
+                "showDescription": true,
+                "description": "Líquida de devolução, sem pedidos cancelados"
+              }
+            }
+          },
+          "position": { "x": 0, "y": 4, "width": 3, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "kpi-margem",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    { "name": "measure(Margem)", "expression": "MEASURE(`Margem`)" },
+                    { "name": "monthly(data_pedido)", "expression": "DATE_TRUNC(\"MONTH\", `data_pedido`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(Margem)",
+                  "displayName": "Margem",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "BRL",
+                    "abbreviation": "compact",
+                    "decimalPlaces": { "type": "max", "places": 2 }
+                  }
+                },
+                "period": { "fieldName": "monthly(data_pedido)" }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Margem",
+                "showDescription": true,
+                "description": "Receita menos custo do produto"
+              }
+            }
+          },
+          "position": { "x": 3, "y": 4, "width": 3, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "kpi-pedidos",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    { "name": "measure(Pedidos)", "expression": "MEASURE(`Pedidos`)" },
+                    { "name": "monthly(data_pedido)", "expression": "DATE_TRUNC(\"MONTH\", `data_pedido`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "measure(Pedidos)", "displayName": "Pedidos" },
+                "period": { "fieldName": "monthly(data_pedido)" }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Pedidos",
+                "showDescription": true,
+                "description": "Pedidos distintos, não itens"
+              }
+            }
+          },
+          "position": { "x": 6, "y": 4, "width": 3, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "kpi-ticket-medio",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    { "name": "measure(Ticket Medio)", "expression": "MEASURE(`Ticket Medio`)" },
+                    { "name": "monthly(data_pedido)", "expression": "DATE_TRUNC(\"MONTH\", `data_pedido`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "measure(Ticket Medio)",
+                  "displayName": "Ticket médio",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "BRL",
+                    "decimalPlaces": { "type": "exact", "places": 2 }
+                  }
+                },
+                "period": { "fieldName": "monthly(data_pedido)" }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Ticket médio",
+                "showDescription": true,
+                "description": "Receita por pedido"
+              }
+            }
+          },
+          "position": { "x": 9, "y": 4, "width": 3, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "receita-por-mes",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    { "name": "monthly(data_pedido)", "expression": "DATE_TRUNC(\"MONTH\", `data_pedido`)" },
+                    { "name": "measure(Receita)", "expression": "MEASURE(`Receita`)" }
+                  ],
+                  "disaggregated": false,
+                  "orders": [
+                    { "direction": "ASC", "expression": "DATE_TRUNC(\"MONTH\", `data_pedido`)" }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "monthly(data_pedido)",
+                  "displayName": "Mês",
+                  "scale": { "type": "temporal" }
+                },
+                "y": {
+                  "fieldName": "measure(Receita)",
+                  "displayName": "Receita",
+                  "scale": { "type": "quantitative" },
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "BRL",
+                    "abbreviation": "compact",
+                    "decimalPlaces": { "type": "max", "places": 1 }
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Receita por mês",
+                "showDescription": true,
+                "description": "24 meses. Outubro é o pico do setor; janeiro, o vale."
+              }
+            }
+          },
+          "position": { "x": 0, "y": 7, "width": 12, "height": 5 }
+        },
+        {
+          "widget": {
+            "name": "receita-por-marca",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    { "name": "marca", "expression": "`marca`" },
+                    { "name": "measure(Receita)", "expression": "MEASURE(`Receita`)" }
+                  ],
+                  "disaggregated": false,
+                  "orders": [{ "direction": "DESC", "expression": "MEASURE(`Receita`)" }]
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "measure(Receita)",
+                  "displayName": "Receita",
+                  "scale": { "type": "quantitative" },
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "BRL",
+                    "abbreviation": "compact",
+                    "decimalPlaces": { "type": "max", "places": 1 }
+                  }
+                },
+                "y": {
+                  "fieldName": "marca",
+                  "displayName": "Marca",
+                  "scale": { "type": "categorical" }
+                },
+                "color": {
+                  "fieldName": "marca",
+                  "scale": { "type": "categorical" },
+                  "legend": { "hide": true }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Receita por marca",
+                "showDescription": true,
+                "description": "As 10 marcas do catálogo. Layali lidera com R$ 18,4 mi."
+              }
+            }
+          },
+          "position": { "x": 0, "y": 12, "width": 6, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "margem-por-categoria",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    { "name": "categoria", "expression": "`categoria`" },
+                    { "name": "measure(Margem %)", "expression": "MEASURE(`Margem %`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "categoria",
+                  "displayName": "Categoria",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "custom-order",
+                      "orderedValues": [
+                        "Kit Presente",
+                        "Hidratante Corporal",
+                        "Body Splash",
+                        "Sabonete Artesanal",
+                        "Difusor de Ambiente",
+                        "Água Perfumada",
+                        "Eau de Parfum",
+                        "Bakhoor",
+                        "Incenso",
+                        "Óleo Concentrado"
+                      ]
+                    }
+                  }
+                },
+                "y": {
+                  "fieldName": "measure(Margem %)",
+                  "displayName": "Margem %",
+                  "scale": { "type": "quantitative" },
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": { "type": "max", "places": 1 }
+                  }
+                },
+                "color": {
+                  "fieldName": "categoria",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      { "value": "Kit Presente", "color": "#FF5F66" },
+                      { "value": "Óleo Concentrado", "color": "#7FB3A8" }
+                    ]
+                  },
+                  "legend": { "hide": true }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Margem % por categoria",
+                "showDescription": true,
+                "description": "Da pior para a melhor. Kit Presente vende muito e ganha pouco: 33,0% contra 49,9% do Óleo Concentrado."
+              }
+            }
+          },
+          "position": { "x": 6, "y": 12, "width": 6, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "receita-por-canal",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    { "name": "canal", "expression": "`canal`" },
+                    { "name": "measure(Receita)", "expression": "MEASURE(`Receita`)" }
+                  ],
+                  "disaggregated": false,
+                  "orders": [{ "direction": "DESC", "expression": "MEASURE(`Receita`)" }]
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "canal",
+                  "displayName": "Canal",
+                  "scale": { "type": "categorical" }
+                },
+                "y": {
+                  "fieldName": "measure(Receita)",
+                  "displayName": "Receita",
+                  "scale": { "type": "quantitative" },
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "BRL",
+                    "abbreviation": "compact",
+                    "decimalPlaces": { "type": "max", "places": 1 }
+                  }
+                },
+                "color": {
+                  "fieldName": "canal",
+                  "scale": { "type": "categorical" },
+                  "legend": { "hide": true }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Receita por canal",
+                "showDescription": true,
+                "description": "Visita ainda é quase metade do faturamento."
+              }
+            }
+          },
+          "position": { "x": 0, "y": 18, "width": 4, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "clientes-por-receita",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_vendas",
+                  "fields": [
+                    { "name": "razao_social", "expression": "`razao_social`" },
+                    { "name": "segmento", "expression": "`segmento`" },
+                    { "name": "cidade", "expression": "`cidade`" },
+                    { "name": "measure(Receita)", "expression": "MEASURE(`Receita`)" },
+                    { "name": "measure(Pedidos)", "expression": "MEASURE(`Pedidos`)" },
+                    { "name": "measure(Ticket Medio)", "expression": "MEASURE(`Ticket Medio`)" }
+                  ],
+                  "disaggregated": false,
+                  "orders": [{ "direction": "DESC", "expression": "MEASURE(`Receita`)" }]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  { "fieldName": "razao_social", "displayName": "Cliente" },
+                  { "fieldName": "segmento", "displayName": "Segmento" },
+                  { "fieldName": "cidade", "displayName": "Cidade" },
+                  {
+                    "fieldName": "measure(Receita)",
+                    "displayName": "Receita",
+                    "format": {
+                      "type": "number-currency",
+                      "currencyCode": "BRL",
+                      "decimalPlaces": { "type": "exact", "places": 2 }
+                    }
+                  },
+                  { "fieldName": "measure(Pedidos)", "displayName": "Pedidos" },
+                  {
+                    "fieldName": "measure(Ticket Medio)",
+                    "displayName": "Ticket médio",
+                    "format": {
+                      "type": "number-currency",
+                      "currencyCode": "BRL",
+                      "decimalPlaces": { "type": "exact", "places": 2 }
+                    }
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Clientes por receita",
+                "showDescription": true,
+                "description": "Ordenada da maior para a menor — as primeiras linhas são o top 20. Divide o dataset com o resto da tela, então acompanha os filtros."
+              }
+            }
+          },
+          "position": { "x": 4, "y": 18, "width": 8, "height": 6 }
+        }
+      ]
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "canvasBackgroundColor": { "light": "#FBF9F7", "dark": "#1A1F26" },
+      "widgetBackgroundColor": { "light": "#FFFFFF", "dark": "#11171C" },
+      "widgetBorderColor": { "light": "#FFFFFF", "dark": "#11171C" },
+      "fontColor": { "light": "#11171C", "dark": "#E8ECF0" },
+      "selectionColor": { "light": "#BC4C96", "dark": "#FF9BD2" },
+      "visualizationColors": [
+        "#FFA600",
+        "#FF5F66",
+        "#BC4C96",
+        "#594E90",
+        "#003F5C",
+        "#F0A868",
+        "#7FB3A8"
+      ],
+      "widgetHeaderAlignment": "LEFT"
+    }
+  }
+}
