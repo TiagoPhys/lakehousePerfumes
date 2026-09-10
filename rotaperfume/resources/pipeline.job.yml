@@ -1,15 +1,16 @@
 # Job rotaperfume_pipeline — o pipeline da noite.
 #
-# Hoje ele tem DUAS tarefas. Ele ganha uma por prompt, nas próximas quatro entregas,
-# sempre neste mesmo arquivo:
+# Hoje ele tem SEIS tarefas. Ele cresce a cada prompt, sempre neste mesmo arquivo:
 #
 #   raw_conferencia      (prompt 1)         os 10 arquivos chegaram ao Volume?
 #        |
 #        v
-#   bronze_ingestao      (prompt 2 · hoje)  arquivo vira tabela, 1:1, sem regra
+#   bronze_ingestao      (prompt 2)         arquivo vira tabela, 1:1, sem regra
 #        |
-#        v
-#   silver_transformacao (prompt 3)         limpeza, tipagem, ERP x CRM
+#        +--> silver_clientes          \
+#        +--> silver_pedidos            |  prompt 3 · hoje — as quatro dependem
+#        +--> silver_itens_e_produtos   |  só da bronze e rodam EM PARALELO
+#        +--> silver_crm_e_financeiro  /   entre si
 #        |
 #        v
 #   gold_agregacao       (prompt 4)         as tabelas que a diretoria lê
@@ -20,8 +21,9 @@
 #        v
 #   publicacao           (prompt 6)         dashboard e alerta
 #
-# Cada tarefa nova depende da anterior (depends_on). A primeira falhar para o
-# resto — que é exatamente o ponto da raw_conferencia.
+# A dependência é o conteúdo: a primeira falhar para o resto — que é exatamente o
+# ponto da raw_conferencia. E o que NÃO tem dependência entre si roda junto: as
+# quatro silver não se esperam, e é assim que o DAG desenha na tela.
 resources:
   jobs:
     rotaperfume_pipeline:
@@ -49,6 +51,61 @@ resources:
             notebook_path: ../src/bronze/ingestao.py
             base_parameters:
               catalog: ${var.catalog}
+
+        # As quatro da silver. Todas dependem só de bronze_ingestao e NENHUMA
+        # depende da outra: o Databricks roda as quatro ao mesmo tempo.
+        #
+        # São sql_task rodando arquivo .sql no warehouse serverless — SQL puro,
+        # legível na tela, sem notebook em volta. Por isso o caminho da tabela está
+        # escrito por extenso dentro do SQL: sql_task passa parâmetro como VALOR,
+        # nunca como identificador, então ${var.catalog} não funcionaria lá dentro.
+        - task_key: silver_clientes
+          description: >-
+            Silver clientes — CNPJ normalizado para 14 dígitos, dedup por CNPJ
+            mantendo o cadastro mais antigo, e o contrato declarado na tabela.
+          depends_on:
+            - task_key: bronze_ingestao
+          sql_task:
+            file:
+              path: ../src/silver/01-clientes.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+
+        - task_key: silver_pedidos
+          description: >-
+            Silver pedidos — data convertida dos dois formatos, valor tipado e o
+            cancelamento virando coluna em vez de regra na cabeça de quem consulta.
+          depends_on:
+            - task_key: bronze_ingestao
+          sql_task:
+            file:
+              path: ../src/silver/02-pedidos.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+
+        - task_key: silver_itens_e_produtos
+          description: >-
+            Silver produtos e itens_pedido — a devolução é sinalizada, nunca
+            descartada, e o SKU descontinuado é exposto pelo join com produtos.
+          depends_on:
+            - task_key: bronze_ingestao
+          sql_task:
+            file:
+              path: ../src/silver/03-itens-e-produtos.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+
+        - task_key: silver_crm_e_financeiro
+          description: >-
+            Silver CRM e financeiro — vendedores, carteira, oportunidades, visitas,
+            pagamentos e estoque. A carteira órfã é exposta, não consertada.
+          depends_on:
+            - task_key: bronze_ingestao
+          sql_task:
+            file:
+              path: ../src/silver/04-crm-e-financeiro.sql
+              source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
 
       schedule:
         quartz_cron_expression: "0 0 6 * * ?"
